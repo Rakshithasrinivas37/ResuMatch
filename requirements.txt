@@ -1,0 +1,7 @@
+crewai
+python-jobspy
+litellm
+numpy==1.26.4
+requests 
+beautifulsoup4
+python-docx
