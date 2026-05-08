@@ -82,5 +82,53 @@ if api_key:
                 except requests.exceptions.ConnectionError:
                     st.error("❌ Could not connect to FastAPI. Is it running?")
                     st.session_state.jobs_fetched = False  # Reset on failure
+
+    # ✅ Show resume upload ONLY if jobs were fetched successfully
+    if st.session_state.jobs_fetched:
+        st.markdown("---")
+        st.subheader("Step 2: Upload Your Resume")
+
+        resume_file = st.file_uploader("Upload Resume", type=["pdf", "docx"])
+
+        if st.button("Match Jobs and Resume"):
+            if not resume_file:
+                st.warning("Please upload your resume.")
+            else:
+                with st.spinner("Matching resume with jobs..."):
+                    try:
+                        # ✅ Pass file to FastAPI using multipart/form-data
+                        files = {
+                            "resume": (
+                                resume_file.name,        # filename
+                                resume_file.getvalue(),  # raw bytes
+                                resume_file.type         # MIME type e.g. application/pdf
+                            )
+                        }
+
+                        data = {
+                            "job_results": json.dumps(st.session_state.job_results),
+                            "api_key": api_key
+                        }
+
+                        response = requests.post(
+                            "http://localhost:8000/match_resume",
+                            files=files,                          # ✅ file goes here
+                            data=data
+                        )
+
+                        if response.status_code == 200:
+                            result = response.json()
+                            st.success(result["message"])
+                            st.json(result)
+
+                            st.session_state.match_results = result
+                            st.session_state.resume_matched = True
+                        else:
+                            st.error(f"Error {response.status_code}: {response.text}")
+                            st.session_state.resume_matched = False
+
+                    except requests.exceptions.ConnectionError:
+                        st.error("❌ Could not connect to FastAPI. Is it running?")
+                        st.session_state.resume_matched = False       
 else:
     st.warning("Please provide API Key!!!")
