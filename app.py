@@ -313,3 +313,15 @@ async def match_resume(
     return {
         "message": f"Saved {len(rows)} match results to {csv_path}"
     }
+
+@app.get("/download_match_results")
+def download_match_results():
+
+    if not os.path.exists("match_results.csv"):
+        raise HTTPException(status_code=404, detail="No match results found. Run /fetch_jobs first.")
+
+    return FileResponse(
+        path="match_results.csv",
+        media_type="text/csv",
+        filename="match_results.csv"
+    )

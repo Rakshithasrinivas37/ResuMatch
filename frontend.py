@@ -16,11 +16,17 @@ if "jobs_fetched" not in st.session_state:
 if "job_results" not in st.session_state:
     st.session_state.job_results = None
 
+if "jobs_csv_data" not in st.session_state:
+    st.session_state.jobs_csv_data = None
+
 if "resume_matched" not in st.session_state:
     st.session_state.resume_matched = False
 
 if "match_results" not in st.session_state:
     st.session_state.match_results = None
+
+if "match_csv_data" not in st.session_state:
+    st.session_state.match_csv_data = None
 
 if api_key:
     role     = st.text_input("Role:")
@@ -62,13 +68,7 @@ if api_key:
                         if csv_response.status_code == 200:
                             csv_data = csv_response.content    # raw bytes
 
-                            # ✅ Show download button in Streamlit
-                            st.download_button(
-                                label="📥 Download Job Results CSV",
-                                data=csv_data,
-                                file_name="job_results.csv",
-                                mime="text/csv"
-                            )
+                            st.session_state.jobs_csv_data = csv_data
 
                             # ✅ Save to session state for later use (resume matching)
                             df = pd.read_csv(io.BytesIO(csv_data))
@@ -82,6 +82,15 @@ if api_key:
                 except requests.exceptions.ConnectionError:
                     st.error("❌ Could not connect to FastAPI. Is it running?")
                     st.session_state.jobs_fetched = False  # Reset on failure
+
+    if st.session_state.jobs_csv_data is not None:
+        st.download_button(
+            label    = "📥 Download Match Results CSV",
+            data     = st.session_state.jobs_csv_data,
+            file_name= "job_results.csv",
+            mime     = "text/csv",
+            key      = "download_jobs_csv"
+    )
 
     # ✅ Show resume upload ONLY if jobs were fetched successfully
     if st.session_state.jobs_fetched:
@@ -121,14 +130,35 @@ if api_key:
                             st.success(result["message"])
                             st.json(result)
 
-                            st.session_state.match_results = result
-                            st.session_state.resume_matched = True
+                            csv_response = csv_response = requests.get(
+                            "http://localhost:8000/download_match_results",
+                        )
+
+                            if csv_response.status_code == 200:
+                                csv_data = csv_response.content    # raw bytes
+
+                                # ✅ Store in session state — persists across reruns
+                                st.session_state.match_csv_data = csv_data
+
+                                df = pd.read_csv(io.BytesIO(csv_data))
+                                st.session_state.match_results  = df.to_dict(orient="records")
+                                st.session_state.resume_matched = True
+
                         else:
                             st.error(f"Error {response.status_code}: {response.text}")
                             st.session_state.resume_matched = False
 
                     except requests.exceptions.ConnectionError:
                         st.error("❌ Could not connect to FastAPI. Is it running?")
-                        st.session_state.resume_matched = False       
+                        st.session_state.resume_matched = False     
+
+        if st.session_state.match_csv_data is not None and len(st.session_state.match_csv_data) > 0:
+            st.download_button(
+                label    = "📥 Download Match Results CSV",
+                data     = st.session_state.match_csv_data,
+                file_name= "match_results.csv",
+                mime     = "text/csv",
+                key      = "download_match_csv"
+            )
 else:
     st.warning("Please provide API Key!!!")
