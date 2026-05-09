@@ -160,5 +160,124 @@ if api_key:
                 mime     = "text/csv",
                 key      = "download_match_csv"
             )
+        
+        if st.session_state.resume_matched:
+            st.markdown("---")
+            st.subheader("Step 3: Send Results via Email")
+
+            # ✅ Provider config
+            EMAIL_PROVIDERS = {
+                "Gmail": {
+                    "smtp": "smtp.gmail.com",
+                    "port": 587,
+                    "app_password_url": "https://myaccount.google.com/apppasswords",
+                    "instructions": """
+                        1. Go to [myaccount.google.com](https://myaccount.google.com)
+                        2. Navigate to **Security** → **2-Step Verification** (must be ON)
+                        3. Scroll down → click **App Passwords**
+                        4. Select **Mail** → **Other (Custom name)**
+                        5. Click **Generate** → copy the 16-character password
+                                    """
+                },
+                "Yahoo": {
+                    "smtp": "smtp.mail.yahoo.com",
+                    "port": 587,
+                    "app_password_url": "https://login.yahoo.com/account/security",
+                    "instructions": """
+                        1. Go to [Yahoo Account Security](https://login.yahoo.com/account/security)
+                        2. Enable **Two-Step Verification** if not already ON
+                        3. Scroll down → click **Generate app password**
+                        4. Select **Other App** → give it a name
+                        5. Copy the generated password
+                    """
+                },
+                "Outlook": {
+                    "smtp": "smtp.office365.com",
+                    "port": 587,
+                    "app_password_url": "https://account.microsoft.com/security",
+                    "instructions": """
+                        1. Go to [Microsoft Account Security](https://account.microsoft.com/security)
+                        2. Click **Advanced Security Options**
+                        3. Enable **Two-Step Verification** if not already ON
+                        4. Scroll to **App Passwords** → click **Create a new app password**
+                        5. Copy the generated password
+                    """
+                },
+                "iCloud": {
+                    "smtp": "smtp.mail.me.com",
+                    "port": 587,
+                    "app_password_url": "https://appleid.apple.com/account/manage",
+                    "instructions": """
+                        1. Go to [appleid.apple.com](https://appleid.apple.com)
+                        2. Sign in → go to **Security** section
+                        3. Click **Generate Password** under App-Specific Passwords
+                        4. Enter a label → click **Create**
+                        5. Copy the generated password
+                    """
+                },
+                "Zoho": {
+                    "smtp": "smtp.zoho.com",
+                    "port": 587,
+                    "app_password_url": "https://accounts.zoho.com/home#security",
+                    "instructions": """
+                        1. Go to [Zoho Account Security](https://accounts.zoho.com/home#security)
+                        2. Enable **Two-Factor Authentication** if not already ON
+                        3. Scroll to **App-Specific Passwords** → click **Generate New Password**
+                        4. Enter a name → click **Generate**
+                        5. Copy the generated password
+                                    """
+                }
+            }
+
+            # ✅ Provider selector
+            provider = st.selectbox("Select Email Provider", list(EMAIL_PROVIDERS.keys()))
+            selected = EMAIL_PROVIDERS[provider]
+
+            email_id = st.text_input("Enter Email-ID:")
+
+            # ✅ App password field + create button side by side
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                app_password = st.text_input("App Password", type="password")
+            with col2:
+                st.markdown("<br>", unsafe_allow_html=True)
+                st.link_button("🔑 Create App Password", selected["app_password_url"])
+
+            # ✅ Dynamic instructions per provider
+            with st.expander(f"ℹ️ How to create an App Password for {provider}?"):
+                st.markdown(selected["instructions"])
+                st.warning("⚠️ 2-Step Verification must be enabled before generating an App Password.")
+
+            if st.button("Send Mail"):
+                if not email_id:
+                    st.warning("Please enter your Email-ID.")
+                elif not app_password:
+                    st.warning("Please enter your App Password.")
+                else:
+                    with st.spinner("Sending mail..."):
+                        try:
+                            payload = {
+                                "mail_ID": email_id,
+                                "app_password": app_password,
+                                "smtp_server": selected["smtp"],   # ✅ pass SMTP details
+                                "smtp_port": selected["port"],
+                                "provider": provider
+                            }
+
+                            response = requests.post(
+                                "http://localhost:8000/send_mail",
+                                json=payload,
+                                headers={"x-api-key": api_key}
+                            )
+
+                            if response.status_code == 200:
+                                result = response.json()
+                                st.success(result["message"])
+                            else:
+                                st.error(f"Error {response.status_code}: {response.text}")
+
+                        except requests.exceptions.ConnectionError:
+                            st.error("❌ Could not connect to FastAPI. Is it running?")
+
 else:
     st.warning("Please provide API Key!!!")
