@@ -318,7 +318,7 @@ async def match_resume(
 def download_match_results():
 
     if not os.path.exists("match_results.csv"):
-        raise HTTPException(status_code=404, detail="No match results found. Run /fetch_jobs first.")
+        raise HTTPException(status_code=404, detail="No match results found. Run /match_resume first.")
 
     return FileResponse(
         path="match_results.csv",
