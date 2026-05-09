@@ -257,15 +257,17 @@ if api_key:
                     with st.spinner("Sending mail..."):
                         try:
                             payload = {
-                                "mail_ID": email_id,
+                                "mail_id": email_id,
                                 "app_password": app_password,
                                 "smtp_server": selected["smtp"],   # ✅ pass SMTP details
                                 "smtp_port": selected["port"],
-                                "provider": provider
+                                "provider": provider,
+                                "candidate_name": "Rakshitha S",
+                                "api_key": api_key
                             }
 
                             response = requests.post(
-                                "http://localhost:8000/send_mail",
+                                "http://localhost:8000/send_email",
                                 json=payload,
                                 headers={"x-api-key": api_key}
                             )
