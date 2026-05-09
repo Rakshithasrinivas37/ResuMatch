@@ -6,6 +6,7 @@ import shutil
 from pathlib import Path
 import time
 import re
+import ast
 
 from fastapi import FastAPI, File, UploadFile, Header, HTTPException, Form
 from fastapi.responses import FileResponse
@@ -38,6 +39,9 @@ class AuthenticationDetils(BaseModel):
 class EmailInput(BaseModel):
     mail_id        : str
     app_password   : str
+    smtp_server    : str
+    smtp_port      : int
+    provider       : str
     candidate_name : str
     api_key        : str
     csv_path       : str = "match_results.csv"
@@ -314,14 +318,6 @@ def convert_match_results_to_csv(match_results: list, csv_path: str = "match_res
             # ── Skill gap ──────────────────────────────
             "matching_skills"    : matching_skills,
             "missing_skills"     : missing_skills,
-            "bonus_skills"       : bonus_skills,
-
-            # ── Upskilling ─────────────────────────────
-            "upskilling_roadmap" : upskilling_summary,
-
-            # ── Interview prep ─────────────────────────
-            "interview_questions": questions,
-            "projects_to_highlight": projects,
         })
 
     df = pd.DataFrame(rows)
@@ -375,7 +371,57 @@ def download_match_results():
         filename="match_results.csv"
     )
 
-@app.post("/send_emails")
+def parse_email_script(raw: str) -> dict:
+    """Parse email script from LLM output — handles malformed JSON."""
+
+    # ── Clean raw string ───────────────────────────────
+    raw = raw.strip()
+    raw = raw.removeprefix("```json").removesuffix("```").strip()
+    raw = raw.removeprefix("```").removesuffix("```").strip()
+
+    # ── Attempt 1: direct JSON parse ───────────────────
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        pass
+
+    # ── Attempt 2: escape control chars then parse ─────
+    try:
+        cleaned = re.sub(r'(?<!\\)\n', '\\n', raw)
+        cleaned = re.sub(r'(?<!\\)\r', '\\r', cleaned)
+        cleaned = re.sub(r'(?<!\\)\t', '\\t', cleaned)
+        match   = re.search(r'\{.*\}', cleaned, re.DOTALL)
+        if match:
+            return json.loads(match.group())
+    except Exception:
+        pass
+
+    # ── Attempt 3: regex extraction ────────────────────
+    try:
+        subject = re.search(
+            r'"subject"\s*:\s*"(.*?)"(?=\s*,\s*"body")',
+            raw, re.DOTALL
+        )
+        body = re.search(
+            r'"body"\s*:\s*"(.*?)(?:"\s*\}|"\s*$)',
+            raw, re.DOTALL
+        )
+        if subject and body:
+            return {
+                "subject": subject.group(1).strip(),
+                "body"   : body.group(1).replace('\\n', '\n').strip()
+            }
+    except Exception:
+        pass
+
+    # ── Attempt 4: return raw as body ──────────────────
+    print("⚠️ Could not parse JSON — using raw output as body")
+    return {
+        "subject": "Your Job Match Results are Ready!",
+        "body"   : raw
+    }
+
+@app.post("/send_email")
 def send_emails(data: EmailInput):
     try:
         # ── Read match results CSV ─────────────────────
@@ -427,20 +473,9 @@ def send_emails(data: EmailInput):
         response = email_crew.kickoff()
 
         # ── Parse subject and body ─────────────────────
-        try:
-            raw = str(response).strip()
-            raw = raw.removeprefix("```json").removesuffix("```").strip()
-            # ✅ Find JSON object (not array)
-            match = re.search(r'\{.*\}', raw, re.DOTALL)
-            email_script = json.loads(match.group()) if match else {}
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Could not parse email script: {str(e)}"
-            )
-
-        subject = email_script.get("subject", "Your Job Match Results")
-        body    = email_script.get("body", "")
+        email_script = parse_email_script(str(response))
+        subject      = email_script.get("subject", "Your Job Match Results")
+        body         = email_script.get("body", "")
 
         print(f"Subject: {subject}")
 
@@ -454,14 +489,10 @@ def send_emails(data: EmailInput):
             "csv_path"      : data.csv_path
         })
 
-        send_result = json.loads(EmailSenderTool(send_input))
+        send_result = json.loads(EmailSenderTool.run(send_input))
 
         return {
-            "status"  : "success",
-            "sent_to" : data.mail_id,
-            "subject" : subject,
-            "csv_sent": data.csv_path,
-            "result"  : send_result
+            "message": "Email sent to user mail-id with match_results.csv"
         }
 
     except HTTPException:
