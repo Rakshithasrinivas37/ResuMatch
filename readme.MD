@@ -26,8 +26,6 @@ interview tips.
   with detailed skill gap analysis
 - 📧 **Automated Email Delivery** — sends match results with CSV
   attached via SMTP
-- 👤 **User Management** — persists match history per user to avoid
-  duplicate matches across sessions
 - 🖥️ **Interactive UI** — multi-step Streamlit interface for seamless
   experience
 
