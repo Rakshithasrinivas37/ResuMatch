@@ -1,8 +1,8 @@
 # 🎯 ResuMatch — AI-Powered Resume and Job Matching System
 
-> Multi-agent AI system that scrapes jobs from top platforms, scores
-> them against your resume and delivers ranked results with interview
-> tips directly to your inbox.
+> Multi-agent AI system that scrapes jobs from top platforms such as Linkedin, Indeed, 
+> Foundit and jobstreet, scores them against your resume and delivers ranked results with 
+> interview tips directly to your inbox.
 
 ---
 
@@ -48,8 +48,6 @@ interview tips.
   - Match score (0-100)
   - Skill gap analysis (matching, missing, bonus skills)
   - Application eligibility verdict
-  - Upskilling roadmap with resources and timelines
-  - Interview preparation tips
 
 ### 3. Email Scripting Agent
 - Reads match results from CSV
@@ -64,10 +62,9 @@ interview tips.
 | Category | Technology |
 |---|---|
 | AI Framework | CrewAI |
-| LLM | LLaMA 3.3 70B (Groq / Cerebras) |
+| LLM | LLaMA 3.3 70B (Groq) |
 | Backend | FastAPI |
 | Frontend | Streamlit |
-| Database | SQLite |
 | Resume Parsing | pdfminer, python-docx |
 | Email | SMTP (smtplib) |
 | Data Processing | pandas |
