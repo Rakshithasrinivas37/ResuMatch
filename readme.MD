@@ -118,8 +118,7 @@ Provide Groq API to start with the process in configurations.
 
 - [ ] Expand job scraping to support multiple countries and regions
 - [ ] **User-based system** — register and login with personal profile
-      to track match history, saved jobs and application status
-      across sessions
+      to track match history
 - [ ] Add support for more resume formats (TXT, LinkedIn PDF)
 
 ---
